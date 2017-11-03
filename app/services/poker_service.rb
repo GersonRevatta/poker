@@ -17,7 +17,7 @@ class PokerService
   def initialize(token = nil)
     if not Rails.env.test? && token.nil?
       @token = deck_token
-    elsif token.present?
+    elsif token && token.present?
       @token = token
     else
       @token = false
@@ -37,13 +37,16 @@ class PokerService
   def delear
     # send token and number of card
     if @token
-      request  = "#{Settings.comparaonline.deck}/#{@token}/deal/5"
-      puts "GET: #{request}"
-      loop do
-        sleep 15
-        response = Typhoeus.get(request)
-        return options(JSON.parse(response.body)) if response.code == 200
-      end
+      # request  = "#{Settings.comparaonline.deck}/#{@token}/deal/5"
+      # puts "GET: #{request}"
+      # loop do
+      #   sleep 15
+      #   response = Typhoeus.get(request)
+      #   return options(JSON.parse(response.body)) if response.code == 200
+      # end
+      options(random_cards)
+    else
+      options(random_cards)
     end
   end
 
@@ -84,6 +87,13 @@ class PokerService
     end
   end
 
+  def card_suits
+    {
+      "S" => "spades", "H" => "hearts",
+      "C" => "clubs", "D" => "diamonds"
+    }
+  end
+
   def card_faces
     {
       "2" => "2", "3" => "3", "4" => "4",
@@ -102,6 +112,16 @@ class PokerService
       "Jack" => 11, "Queen" => 12, "King" => 13,
       "Ace" => 14
     }
+  end
+
+  def random_cards
+    @demo = []
+    while @demo.length < 5
+      number = card_faces.keys
+      suits  = card_suits.keys
+      @demo << {"number"=> number[rand(number.length)], "suit"=> suits[rand(suits.length)]}
+    end
+    @demo
   end
 
   # 1. High Card: Highest value card. Order is 2, 3, 4, 5, 6, 7, 8, 9, Ten, Jack, Queen, King, Ace.
