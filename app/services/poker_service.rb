@@ -12,60 +12,48 @@
 
 class PokerService
 
-  attr_reader :token, :cards, :suits, :faces, :values
-  
-  # Translation key for letters to suit names
-  CARD_SUITS = {
-    "S" => "spades", "H" => "hearts",
-    "C" => "clubs", "D" => "diamonds"
-  }
+  attr_reader :token, :cards, :suits, :faces, :values, :ranking
 
-  # Translation key for numbers/letters to suit faces
-  CARD_FACES = { 
-    "2" => "2", "3" => "3", "4" => "4",
-    "5" => "5", "6" => "6", "7" => "7",
-    "8" => "8", "9" => "9", "10" => "10",
-    "J" => "Jack", "Q" => "Queen", "K" => "King",
-    "A" => "Ace"
-  }
-
-  # Translation key for numbers/suit faces to card values
-  CARD_VALUES = {
-    "2" => 2, "3" => 3, "4" => 4,
-    "5" => 5, "6" => 6, "7" => 7,
-    "8" => 8, "9" => 9, "10" => 10,
-    "Jack" => 11, "Queen" => 12, "King" => 13,
-    "Ace" => 14
-  }
-
-  def initialize
-    @token  = deck_token if not Rails.env.test?
+  def initialize(token = nil)
+    if not Rails.env.test? && token.nil?
+      @token = deck_token
+    elsif token.present?
+      @token = token
+    else
+      @token = false
+    end
   end
 
   def deck_token
     # this return a token b7cbef80-c003-11e7-b704-3b7d2b7285fd
-    response = Typhoeus.post(Settings.comparaonline.deck)
-    return response.body if response.code == 200
-    @token = false
+    response ||= Typhoeus.post(Settings.comparaonline.deck)
+    if response.code == 200
+      @token = response.body
+    elsif response.code == 500
+      @token = false
+    end
   end
 
   def delear
     # send token and number of card
     if @token
       request  = "#{Settings.comparaonline.deck}/#{@token}/deal/5"
-      response = Typhoeus.get(request)
-      options(JSON.parse(response.body))
-    else
-      @hand    = [{"number"=>"10", "suit"=>"hearts"}, {"number"=>"J", "suit"=>"hearts"}, {"number"=>"Q", "suit"=>"hearts"}, {"number"=>"K", "suit"=>"hearts"}, {"number"=>"A", "suit"=>"hearts"}]
-      options(@hand)
+      puts "GET: #{request}"
+      loop do
+        sleep 15
+        response = Typhoeus.get(request)
+        return options(JSON.parse(response.body)) if response.code == 200
+      end
     end
   end
 
   def options(card)
+    puts "CARD: #{card}"
     @cards      = card.map{|a| a['number'] }
     @suits      = card.map{|a| a['suit'] } 
-    @faces      = @cards.map { |card| CARD_FACES[card] }
-    @values     = @faces.map { |face| CARD_VALUES[face] }
+    @faces      = @cards.map { |card| card_faces[card] }
+    @values     = @faces.map { |face| card_values[face] }
+    return self
   end
 
   def evaluate
@@ -73,20 +61,47 @@ class PokerService
     when flush?
       determine_flush_type
     when straight?
-      "Straight (#{straight})"
+      @ranking = 6
+      "Straight"
     when four_of_a_kind?
-      "Four of a Kind (#{four_of_a_kind})"
+      @ranking = 3
+      "Four of a Kind"
     when full_house?
-      "Full House (#{full_house})"
+      @ranking = 4
+      "Full House"
     when three_of_a_kind?
-      "Three of a Kind (#{three_of_a_kind})"
+      @ranking = 7
+      "Three of a Kind"
     when two_pair?
-      "Two Pair (#{two_pair})"
+      @ranking = 8
+      "Two Pair"
     when one_pair?
-      "One Pair (#{one_pair})"
+      @ranking = 9
+      "One Pair"
     else
-      "High Card: (#{high_card})"
+      @ranking = 10
+      "High Card"
     end
+  end
+
+  def card_faces
+    {
+      "2" => "2", "3" => "3", "4" => "4",
+      "5" => "5", "6" => "6", "7" => "7",
+      "8" => "8", "9" => "9", "10" => "10",
+      "J" => "Jack", "Q" => "Queen", "K" => "King",
+      "A" => "Ace"
+    }
+  end
+
+  def card_values
+    {
+      "2" => 2, "3" => 3, "4" => 4,
+      "5" => 5, "6" => 6, "7" => 7,
+      "8" => 8, "9" => 9, "10" => 10,
+      "Jack" => 11, "Queen" => 12, "King" => 13,
+      "Ace" => 14
+    }
   end
 
   # 1. High Card: Highest value card. Order is 2, 3, 4, 5, 6, 7, 8, 9, Ten, Jack, Queen, King, Ace.
@@ -134,7 +149,7 @@ class PokerService
 
   # 6. Flush: All cards of the same suit.
   def flush?
-    @suits.uniq.length == 1
+    @suits.uniq.length == 1 rescue false
   end
 
   def flush
@@ -167,11 +182,14 @@ class PokerService
 
   def determine_flush_type
     if royal_flush?
-      "Royal Flush (#{royal_flush})"
+      @ranking = 1
+      "Royal Flush"
     elsif straight?
-      "Straight Flush (#{straight_flush})"
+      @ranking = 2
+      "Straight Flush"
     else
-      "Flush (#{flush})"
+      @ranking = 5
+      "Flush"
     end
   end
 
