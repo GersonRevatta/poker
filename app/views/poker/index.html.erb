@@ -16,4 +16,18 @@
     <th>(<%= @one_ranking %>) <%= @one_evaluate %></th>
     <th>(<%= @second_ranking %>) <%= @second_evaluate %></th>
   </tr>
+
+  <tr>
+    <td>Winner</td>
+    <% if @one_ranking > @second_ranking %>
+    <th>Winner</th>
+    <th></th>
+    <% elsif @one_ranking < @second_ranking %>
+    <th></th>
+    <th>Winner</th>
+    <% elsif @one_ranking == @second_ranking %>
+    <th>Tie</th>
+    <th>Tie</th>
+    <% end %>
+  </tr>
 </table>
