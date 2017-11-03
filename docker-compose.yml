@@ -1,0 +1,20 @@
+version: '2'
+services:
+  poker:
+    build:
+      context: .
+      dockerfile: Dockerfile.development
+    ports:
+      - "80"
+    environment:
+      - PASSENGER_APP_ENV=development
+      - RAILS_LOG_TO_STDOUT=true
+      - VIRTUAL_PORT=80
+      - VIRTUAL_HOST=poker.dockerapp.com
+    volumes:
+      - .:/home/app/webapp
+networks:
+  default:
+    external:
+      name: nginxproxy
+
